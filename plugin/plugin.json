@@ -1,0 +1,106 @@
+{
+  "apiVersion": 3,
+  "id": "tripo",
+  "version": "0.1.0",
+  "name": "Tripo",
+  "publisher": "Arek Nurzyński",
+  "description": "Make 3D models with your own Tripo API key and Tripo credits, not Genex credits.",
+  "backend": "backend.mjs",
+  "capabilities": ["credentials", "network", "jobs", "project.write"],
+  "network": {
+    "hosts": ["api.tripo3d.ai", "*.tripo3d.ai", "*.tripo3d.com"]
+  },
+  "tools": [
+    {
+      "name": "status",
+      "description": "Read the Tripo account state, the API wallet balance and the recent Tripo tasks for this game. Free; spends nothing.",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "generate",
+      "description": "Start one paid Tripo task with the user's own Tripo credits, wait up to about two and a half minutes, then download the result into the game. Operations: text_to_model (needs prompt), image_to_model (needs image, a project-relative png/jpg/webp, or options.imageUrl), and with id set to an earlier Tripo task id: texture_model, animate_prerigcheck, animate_rig, animate_retarget (options.animation, for example \"preset:run\"), stylize_model, convert_model. options holds other Tripo API fields such as model_version, face_limit, texture, pbr, texture_quality, negative_prompt, out_format. If the result says running, call tripo__retrieve with the taskId; never call generate again for the same request.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string",
+            "description": "Project-relative image for image_to_model. Do not use absolute paths."
+          },
+          "id": {
+            "type": "string",
+            "description": "The Tripo task id of the model to work on, for every operation except text_to_model and image_to_model."
+          },
+          "options": {
+            "type": "object",
+            "description": "Extra Tripo API fields as an object; type, file and original_model_task_id are set by the plugin.",
+            "acceptJsonString": true
+          }
+        },
+        "required": ["operation"]
+      },
+      "confirmation": "Start a paid Tripo task with your own Tripo API key. Tripo charges your Tripo wallet."
+    },
+    {
+      "name": "retrieve",
+      "description": "Wait for an existing Tripo task and download its result into the game. Free; never starts a new task. Pass the taskId that tripo__generate returned.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": ["id"]
+      }
+    }
+  ],
+  "skills": [
+    {
+      "name": "tripo",
+      "text": "Tripo makes 3D models with the user's own Tripo API key and Tripo credits. Call tripo__status first; when connected is false, tell the user once to press Connect on the Tripo plugin and paste a key, and do not block other work. Use tripo__generate only for assets the game really needs. Every call asks the user first; a declined or expired request must not be repeated unless the user asks again. When generate returns status running, call tripo__retrieve with its taskId until it is success or failed; never submit the same request twice. Load the exact returned files (for example with GLTFLoader) and check them in the running game. To rig or animate a model, pass its taskId as id: animate_prerigcheck, then animate_rig, then animate_retarget with options.animation. Respect explicit user choices such as Genex credits, Local Blender or procedural-only assets; never switch between paid services silently."
+    }
+  ],
+  "panels": [
+    {
+      "id": "account",
+      "title": "Tripo",
+      "file": "panel.html",
+      "placement": "settings"
+    }
+  ],
+  "settings": [],
+  "actions": [
+    {
+      "name": "status",
+      "label": "Account and tasks"
+    },
+    {
+      "name": "unlock",
+      "label": "Unlock saved Tripo key"
+    },
+    {
+      "name": "connect",
+      "label": "Connect Tripo"
+    },
+    {
+      "name": "disconnect",
+      "label": "Disconnect Tripo",
+      "confirmation": "Remove the saved Tripo API key from Studio. Tasks already started on Tripo keep running."
+    }
+  ],
+  "account": {
+    "connect": "connect",
+    "unlock": "unlock",
+    "disconnect": "disconnect",
+    "status": "status"
+  }
+}
