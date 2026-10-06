@@ -14,7 +14,7 @@ Results are copied into the game under `assets/tripo/<task id>/` (`public/assets
 
 ## Install
 
-1. In Genex: **Plugins → Add → Load local plugin…** and choose the `plugin/` folder.
+1. In Genex: **Plugins → Add → Install from GitHub** and paste `https://github.com/arklanq/genex-tripo`. Studio installs the latest release. To install by hand instead, download `tripo-<version>.zip` from [Releases](https://github.com/arklanq/genex-tripo/releases), unpack it and choose its folder with **Plugins → Add → Load local plugin…**.
 2. Press **Connect** on the Tripo row, paste your key from platform.tripo3d.ai (API Keys, starts with `tsk_`) and press **Save key**. The plugin checks the key with Tripo before Studio saves it.
 3. Studio unlocks the saved key again after a restart. If the panel asks for a key anyway, press **Use saved key** to unlock it.
 
@@ -35,3 +35,13 @@ Check the package with Genex's doctor from a genex-desktop checkout:
 ```bash
 npm run plugin:doctor -- /path/to/genex-tripo/plugin
 ```
+
+## Release
+
+Bump `version` in `plugin/plugin.json` and `package.json`, commit, then push a matching tag:
+
+```bash
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+The Release workflow runs the tests and publishes a GitHub release with `tripo-<version>.zip` attached.
