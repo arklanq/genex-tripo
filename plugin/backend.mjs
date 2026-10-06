@@ -20,6 +20,8 @@ const INDEX_SIZE = 50;
 const INDEX_ID = "index";
 /** How much of the key's end the panel shows, so the user can tell keys apart. */
 const KEY_HINT_CHARS = 4;
+/** A key is printable ASCII, so it is always a valid header value and never echoed in fetch's error. */
+const KEY = /^tsk_[\x21-\x7e]+$/;
 /** Tripo task ids are UUIDs, which is also the job id shape Studio's asset delivery accepts. */
 const TASK_ID = /^[a-f0-9-]{36}$/;
 
@@ -363,7 +365,7 @@ const ACTIONS = {
       return saved ? { connected: true } : { connected: false, needsKey: true };
     }
     const token = args.token.trim();
-    if (!token.startsWith("tsk_")) throw new Error(MESSAGE.BadKey);
+    if (!KEY.test(token)) throw new Error(MESSAGE.BadKey);
     const wallet = await tripo(token, "/user/balance", ctx.signal);
     await ctx.host("credentials.write", { token });
     return { connected: true, balance: wallet.balance, frozen: wallet.frozen };

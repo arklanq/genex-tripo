@@ -331,3 +331,14 @@ test("image_to_model sends an image URL with the type its extension names", asyn
   const submit = requests.find((r) => r.method === "POST" && r.url.endsWith("/task"));
   assert.deepEqual(JSON.parse(submit.body).file, { type: "png", url: "https://cdn.example/hero.PNG?x=1" });
 });
+
+test("a malformed key is refused without echoing it", async () => {
+  fakeTripo();
+  const { ctx, state } = fakeHost(root, game, null);
+  const plugin = await activate(/** @type {any} */ ({}));
+  await assert.rejects(
+    plugin.action("connect", { token: "tsk_ab\ncd" }, ctx),
+    (error) => error.message === "A Tripo API key starts with tsk_." && !error.message.includes("ab"),
+  );
+  assert.equal(state.saved, null);
+});
