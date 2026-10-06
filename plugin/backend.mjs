@@ -377,11 +377,13 @@ export const activate = async () => ({
       return retrievable(id, () => settle(ctx, key, id, signal));
     }
     const body = await taskBody(key, ctx.directory, args, signal);
-    const { task_id: id } = await tripo(key, "/task", signal, {
+    const submitted = await tripo(key, "/task", signal, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
+    // The id names the job record and the download folder, so Tripo's answer is checked like an agent's.
+    const id = taskId(submitted.task_id);
     // Persist the remote reference before waiting, so a lost call can be retrieved instead of repeated.
     const entry = {
       taskId: id,

@@ -51,9 +51,10 @@ function fakeHost(root, game, key = "tsk_test") {
 
 /**
  * Route fetch to canned Tripo answers; `statuses` is consumed one poll at a time.
- * `poll` replaces the task answer, `file` the download answer, and `taskId` the id Tripo reports.
+ * `poll` replaces the task answer, `file` the download answer, and `taskId` / `submitId` the ids Tripo
+ * reports when polled and when a task is submitted.
  */
-function fakeTripo({ statuses = ["success"], output, poll, file, taskId = TASK } = {}) {
+function fakeTripo({ statuses = ["success"], output, poll, file, taskId = TASK, submitId = TASK } = {}) {
   const requests = [];
   globalThis.fetch = async (input, init = {}) => {
     const url = String(input);
@@ -63,7 +64,7 @@ function fakeTripo({ statuses = ["success"], output, poll, file, taskId = TASK }
     const json = (data) => new Response(JSON.stringify({ code: 0, data }), { status: 200 });
     if (url.endsWith("/user/balance")) return json({ balance: 1200, frozen: 0 });
     if (url.endsWith("/upload/sts")) return json({ image_token: "img-token" });
-    if (url.endsWith("/task") && init.method === "POST") return json({ task_id: TASK });
+    if (url.endsWith("/task") && init.method === "POST") return json({ task_id: submitId });
     if (url.includes(`/task/${TASK}`)) {
       if (poll) return poll(init);
       const status = statuses.length > 1 ? statuses.shift() : statuses[0];
@@ -244,6 +245,14 @@ test("a task id Tripo reports never names the download folder", async () => {
   const result = await plugin.tool("generate", { operation: "text_to_model", prompt: "crate" }, ctx);
   await access(path.join(victim, "keep.txt"));
   assert.deepEqual(result.files, [`assets/tripo/${TASK}/model.glb`, `assets/tripo/${TASK}/preview.webp`]);
+});
+
+test("a submitted task id that is not a UUID is refused before it is recorded", async () => {
+  fakeTripo({ submitId: "../../victim" });
+  const { ctx, jobs } = fakeHost(root, game);
+  const plugin = await activate(/** @type {any} */ ({}));
+  await assert.rejects(plugin.tool("generate", { operation: "text_to_model", prompt: "x" }, ctx), /is a UUID/);
+  assert.deepEqual([...jobs.keys()], []);
 });
 
 test("delivered downloads do not stay in plugin storage", async () => {
