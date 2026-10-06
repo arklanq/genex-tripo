@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readdir, writeFile } from "node:fs/promises";
+import { access, mkdtemp, mkdir, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, test } from "node:test";
+import { afterEach, beforeEach, mock, test } from "node:test";
 import { activate } from "../plugin/backend.mjs";
 
 const TASK = "1ec04ced-4b87-44f6-a296-beee80777941";
@@ -44,31 +44,38 @@ function fakeHost(root, game, key = "tsk_test") {
         throw new Error(`unexpected host call ${method}`);
     }
   };
-  const ctx = { project: "demo", directory: game, threadId: "t", callId: 1, signal: new AbortController().signal, host };
-  return { ctx, jobs, calls, delivered, state };
+  const stop = new AbortController();
+  const ctx = { project: "demo", directory: game, threadId: "t", callId: 1, signal: stop.signal, host };
+  return { ctx, jobs, calls, delivered, state, stop };
 }
 
-/** Route fetch to canned Tripo answers; `statuses` is consumed one poll at a time. */
-function fakeTripo({ statuses = ["success"], output } = {}) {
+/**
+ * Route fetch to canned Tripo answers; `statuses` is consumed one poll at a time.
+ * `poll` replaces the task answer, `file` the download answer, and `taskId` the id Tripo reports.
+ */
+function fakeTripo({ statuses = ["success"], output, poll, file, taskId = TASK } = {}) {
   const requests = [];
   globalThis.fetch = async (input, init = {}) => {
     const url = String(input);
+    // Header values are checked the way real fetch checks them.
+    new Headers(init.headers);
     requests.push({ url, method: init.method ?? "GET", body: init.body, auth: init.headers?.Authorization });
     const json = (data) => new Response(JSON.stringify({ code: 0, data }), { status: 200 });
     if (url.endsWith("/user/balance")) return json({ balance: 1200, frozen: 0 });
     if (url.endsWith("/upload/sts")) return json({ image_token: "img-token" });
     if (url.endsWith("/task") && init.method === "POST") return json({ task_id: TASK });
     if (url.includes(`/task/${TASK}`)) {
+      if (poll) return poll(init);
       const status = statuses.length > 1 ? statuses.shift() : statuses[0];
       return json({
-        task_id: TASK,
+        task_id: taskId,
         type: "text_to_model",
         status,
         progress: status === "success" ? 100 : 50,
         output: status === "success" ? (output ?? { pbr_model: MODEL_URL, rendered_image: PREVIEW_URL }) : {},
       });
     }
-    if (url.startsWith("https://tripo-data.")) return new Response(new Uint8Array([1, 2, 3]));
+    if (url.startsWith("https://tripo-data.")) return file ? file(url, init) : new Response(new Uint8Array([1, 2, 3]));
     return new Response("not found", { status: 404 });
   };
   return requests;
@@ -180,4 +187,49 @@ test("status shows only the key's last four characters", async () => {
   const state = await plugin.tool("status", {}, ctx);
   assert.equal(state.keyHint, "9f2c");
   assert.doesNotMatch(JSON.stringify(state), /secret/);
+});
+
+/** Run a tool call on mocked timers, ticking one poll at a time until it settles. */
+async function onMockedClock(start) {
+  mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  try {
+    let settled = false;
+    const call = start();
+    call.then(
+      () => (settled = true),
+      () => (settled = true),
+    );
+    while (!settled) {
+      await new Promise((resolve) => setImmediate(resolve));
+      mock.timers.tick(3_000);
+    }
+    return await call;
+  } finally {
+    mock.timers.reset();
+  }
+}
+
+test("a task still running when generate returns is delivered by a later retrieve", async () => {
+  const statuses = ["running"];
+  fakeTripo({ statuses });
+  const { ctx, delivered } = fakeHost(root, game);
+  const plugin = await activate(/** @type {any} */ ({}));
+  const first = await onMockedClock(() => plugin.tool("generate", { operation: "text_to_model", prompt: "crate" }, ctx));
+  assert.equal(first.status, "running");
+  assert.match(first.next, /tripo__retrieve/);
+
+  statuses[0] = "success";
+  const later = await plugin.tool("retrieve", { id: TASK }, ctx);
+  assert.equal(later.status, "success");
+  assert.deepEqual(later.files, [`assets/tripo/${TASK}/model.glb`, `assets/tripo/${TASK}/preview.webp`]);
+  assert.deepEqual(delivered, later.files);
+});
+
+test("retrieve of a finished task without files still reports Tripo's output", async () => {
+  fakeTripo({ output: { riggable: true, rig_type: "biped" } });
+  const { ctx } = fakeHost(root, game);
+  const plugin = await activate(/** @type {any} */ ({}));
+  await plugin.tool("generate", { operation: "animate_prerigcheck", id: TASK }, ctx);
+  const again = await plugin.tool("retrieve", { id: TASK }, ctx);
+  assert.deepEqual(again.output, { riggable: true, rig_type: "biped" });
 });

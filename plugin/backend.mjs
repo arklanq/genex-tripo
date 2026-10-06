@@ -237,19 +237,19 @@ async function settle(ctx, key, id) {
     task = await tripo(key, `/task/${id}`);
   }
   const record = /** @type {any} */ ((await ctx.host("jobs.read", { id })) ?? { taskId: id });
+  // Only a record that reached success holds delivered files; a pending one holds an empty list.
+  const delivered = record.status === Status.Success ? record.files : undefined;
   const result = {
     taskId: id,
     operation: task.type,
     status: task.status,
     progress: task.progress,
     consumedCredit: task.consumed_credit,
-    files: record.files ?? [],
+    files: delivered ?? [],
   };
-  if (task.status === Status.Success && !record.files) {
-    result.files = await deliver(ctx, task);
-    // Outputs without files (a pre-rig check) are reported as Tripo returned them.
-    if (result.files.length === 0) result.output = task.output;
-  }
+  if (task.status === Status.Success && !delivered) result.files = await deliver(ctx, task);
+  // Outputs without files (a pre-rig check) are reported as Tripo returned them.
+  if (task.status === Status.Success && result.files.length === 0) result.output = task.output;
   await ctx.host("jobs.write", { id, value: { ...record, status: task.status, files: result.files } });
   if (PENDING.has(task.status))
     return { ...result, next: `Still ${task.status}. Call tripo__retrieve with id ${id}; do not generate again.` };
