@@ -159,6 +159,15 @@ async function uploadImage(key, directory, relative, signal) {
 }
 
 /**
+ * The `file` field for an image Tripo fetches itself, typed by its extension (jpg when it has none).
+ * @param {string} url
+ */
+function imageUrlFile(url) {
+  const extension = /** @type {keyof typeof IMAGE_TYPES} */ (path.extname(new URL(url).pathname).toLowerCase());
+  return { type: IMAGE_TYPES[extension] ?? "jpg", url };
+}
+
+/**
  * Build the Tripo task body for one tool call.
  * @param {string} key
  * @param {string} directory
@@ -175,7 +184,7 @@ async function taskBody(key, directory, args, signal) {
     body.prompt = String(args.prompt);
   } else if (operation === "image_to_model") {
     if (args.image) body.file = await uploadImage(key, directory, String(args.image), signal);
-    else if (typeof options.imageUrl === "string") body.file = { type: "jpg", url: options.imageUrl };
+    else if (typeof options.imageUrl === "string") body.file = imageUrlFile(options.imageUrl);
     else throw new Error(MESSAGE.ImageRequired);
     if (args.prompt) body.prompt = String(args.prompt);
   } else if (DERIVED_OPERATIONS.has(operation)) {

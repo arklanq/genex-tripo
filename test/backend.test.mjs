@@ -322,3 +322,12 @@ test("a failure after the task was submitted names the task to retrieve", async 
   );
   assert.equal(requests.filter((r) => r.method === "POST" && r.url.endsWith("/task")).length, 1);
 });
+
+test("image_to_model sends an image URL with the type its extension names", async () => {
+  const requests = fakeTripo();
+  const { ctx } = fakeHost(root, game);
+  const plugin = await activate(/** @type {any} */ ({}));
+  await plugin.tool("generate", { operation: "image_to_model", options: { imageUrl: "https://cdn.example/hero.PNG?x=1" } }, ctx);
+  const submit = requests.find((r) => r.method === "POST" && r.url.endsWith("/task"));
+  assert.deepEqual(JSON.parse(submit.body).file, { type: "png", url: "https://cdn.example/hero.PNG?x=1" });
+});
