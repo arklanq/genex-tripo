@@ -302,3 +302,14 @@ test("stopping the turn ends a Tripo request that hangs", async () => {
   setImmediate(() => stop.abort(new Error("stopped")));
   await assert.rejects(call, /stopped/);
 });
+
+test("a failure after the task was submitted names the task to retrieve", async () => {
+  const requests = fakeTripo({ poll: () => new Response("busy", { status: 503 }) });
+  const { ctx } = fakeHost(root, game);
+  const plugin = await activate(/** @type {any} */ ({}));
+  await assert.rejects(
+    plugin.tool("generate", { operation: "text_to_model", prompt: "x" }, ctx),
+    (error) => error.message.includes(TASK) && /tripo__retrieve/.test(error.message) && /503/.test(error.message),
+  );
+  assert.equal(requests.filter((r) => r.method === "POST" && r.url.endsWith("/task")).length, 1);
+});

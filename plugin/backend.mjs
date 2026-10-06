@@ -60,6 +60,8 @@ const MESSAGE = {
   DownloadHost: (host) => `Refusing to download from ${host}: not a Tripo host.`,
   DownloadTooLarge: "A Tripo result is larger than 100 MiB.",
   UnknownAction: "Unknown Tripo action.",
+  Unsettled: (id, detail) =>
+    `${detail} Tripo task ${id} already exists: call tripo__retrieve with id ${id}; do not generate again.`,
 };
 
 /**
@@ -289,6 +291,21 @@ async function settle(ctx, key, id, signal) {
   return result;
 }
 
+/**
+ * Run the work that follows a submitted task, naming the task to retrieve if any of it fails.
+ * @template T
+ * @param {string} id
+ * @param {() => Promise<T>} work
+ */
+async function retrievable(id, work) {
+  try {
+    return await work();
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(MESSAGE.Unsettled(id, detail), { cause: error });
+  }
+}
+
 /** Serialize index writes so concurrent tasks do not drop each other. */
 let indexWrite = Promise.resolve();
 
@@ -355,7 +372,10 @@ export const activate = async () => ({
     if (!ctx.project || !ctx.directory) throw new Error(MESSAGE.ProjectRequired);
     const key = await sessionKey(ctx);
     const signal = AbortSignal.any([ctx.signal, AbortSignal.timeout(CALL_MS)]);
-    if (name === "retrieve") return settle(ctx, key, taskId(args.id), signal);
+    if (name === "retrieve") {
+      const id = taskId(args.id);
+      return retrievable(id, () => settle(ctx, key, id, signal));
+    }
     const body = await taskBody(key, ctx.directory, args, signal);
     const { task_id: id } = await tripo(key, "/task", signal, {
       method: "POST",
@@ -370,9 +390,11 @@ export const activate = async () => ({
       project: ctx.project,
       createdAt: new Date().toISOString(),
     };
-    await ctx.host("jobs.write", { id, value: entry });
-    await remember(ctx, entry);
-    return settle(ctx, key, id, signal);
+    return retrievable(id, async () => {
+      await ctx.host("jobs.write", { id, value: entry });
+      await remember(ctx, entry);
+      return settle(ctx, key, id, signal);
+    });
   },
   async action(name, args, ctx) {
     const run = Object.hasOwn(ACTIONS, name) ? ACTIONS[name] : undefined;
