@@ -5,6 +5,7 @@
   "name": "Tripo",
   "publisher": "Arek Nurzyński",
   "description": "Make 3D models with your own Tripo API key and Tripo credits, not Genex credits.",
+  "icon": "icon.svg",
   "backend": "backend.mjs",
   "capabilities": ["credentials", "network", "jobs", "project.write"],
   "network": {
