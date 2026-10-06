@@ -14,6 +14,8 @@ const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 /** How many recent tasks the job index keeps. */
 const INDEX_SIZE = 50;
 const INDEX_ID = "index";
+/** How much of the key's end the panel shows, so the user can tell keys apart. */
+const KEY_HINT_CHARS = 4;
 /** Tripo task ids are UUIDs, which is also the job id shape Studio's asset delivery accepts. */
 const TASK_ID = /^[a-f0-9-]{36}$/;
 
@@ -280,11 +282,12 @@ async function status(ctx) {
   const index = /** @type {any[]} */ ((await ctx.host("jobs.read", { id: INDEX_ID })) ?? []);
   const jobs = index.filter((job) => !ctx.project || job.project === ctx.project).slice(0, 10);
   if (!key) return { connected: false, message: MESSAGE.Locked, jobs };
+  const keyHint = key.slice(-KEY_HINT_CHARS);
   try {
     const wallet = await tripo(key, "/user/balance");
-    return { connected: true, balance: wallet.balance, frozen: wallet.frozen, jobs };
+    return { connected: true, keyHint, balance: wallet.balance, frozen: wallet.frozen, jobs };
   } catch (error) {
-    return { connected: true, error: String(error instanceof Error ? error.message : error), jobs };
+    return { connected: true, keyHint, error: String(error instanceof Error ? error.message : error), jobs };
   }
 }
 

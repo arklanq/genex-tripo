@@ -172,3 +172,12 @@ test("connect checks a new key with Tripo before saving it, and disconnect clear
   await plugin.action("disconnect", {}, ctx);
   assert.equal(state.saved, null);
 });
+
+test("status shows only the key's last four characters", async () => {
+  fakeTripo();
+  const { ctx } = fakeHost(root, game, "tsk_secret9f2c");
+  const plugin = await activate(/** @type {any} */ ({}));
+  const state = await plugin.tool("status", {}, ctx);
+  assert.equal(state.keyHint, "9f2c");
+  assert.doesNotMatch(JSON.stringify(state), /secret/);
+});
