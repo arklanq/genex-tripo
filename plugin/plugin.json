@@ -72,7 +72,7 @@
   "panels": [
     {
       "id": "account",
-      "title": "Tripo",
+      "title": "Configuration",
       "file": "panel.html",
       "placement": "settings"
     }
