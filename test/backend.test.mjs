@@ -253,3 +253,40 @@ test("delivered downloads do not stay in plugin storage", async () => {
   await plugin.tool("generate", { operation: "text_to_model", prompt: "crate" }, ctx);
   await assert.rejects(access(path.join(root, "downloads", TASK)));
 });
+
+test("a download that redirects is refused instead of followed", async () => {
+  // The fake answers as fetch would for a 302 to another host: an error, or the other host's body.
+  let followed = false;
+  fakeTripo({
+    file: async (_url, init) => {
+      if (init.redirect === "error") throw new TypeError("fetch failed: unexpected redirect");
+      followed = true;
+      return new Response(new Uint8Array([9]));
+    },
+  });
+  const { ctx } = fakeHost(root, game);
+  const plugin = await activate(/** @type {any} */ ({}));
+  await assert.rejects(plugin.tool("generate", { operation: "text_to_model", prompt: "x" }, ctx), /redirect/);
+  assert.equal(followed, false);
+});
+
+test("a download larger than the cap stops reading early", async () => {
+  const chunk = new Uint8Array(1024 * 1024);
+  let pulls = 0;
+  fakeTripo({
+    file: () =>
+      new Response(
+        new ReadableStream({
+          pull(controller) {
+            pulls += 1;
+            if (pulls > 300) controller.close();
+            else controller.enqueue(chunk);
+          },
+        }),
+      ),
+  });
+  const { ctx } = fakeHost(root, game);
+  const plugin = await activate(/** @type {any} */ ({}));
+  await assert.rejects(plugin.tool("generate", { operation: "text_to_model", prompt: "x" }, ctx), /larger than 100 MiB/);
+  assert.ok(pulls < 110, `read ${pulls} MiB`);
+});

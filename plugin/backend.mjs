@@ -77,6 +77,7 @@ async function sessionKey(ctx) {
 async function tripo(key, route, init = {}) {
   const response = await fetch(`${API}${route}`, {
     ...init,
+    redirect: "error",
     headers: { Authorization: `Bearer ${key}`, ...init.headers },
   });
   const body = await response.json().catch(() => null);
@@ -184,6 +185,21 @@ function taskId(value) {
 }
 
 /**
+ * Read a response body, refusing it as soon as it passes the download cap.
+ * @param {Response} response
+ */
+async function readCapped(response) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of response.body ?? []) {
+    size += chunk.length;
+    if (size > MAX_DOWNLOAD_BYTES) throw new Error(MESSAGE.DownloadTooLarge);
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+}
+
+/**
  * Download one Tripo result URL into `dir` as `<name><ext>`.
  * @param {string} url
  * @param {string} dir
@@ -193,10 +209,10 @@ async function download(url, dir, name) {
   const parsed = new URL(url);
   if (parsed.protocol !== "https:" || !DOWNLOAD_HOSTS.some((h) => parsed.hostname.endsWith(h)))
     throw new Error(MESSAGE.DownloadHost(parsed.hostname));
-  const response = await fetch(parsed);
+  // A redirect could lead off Tripo's hosts, so it fails instead of being followed.
+  const response = await fetch(parsed, { redirect: "error" });
   if (!response.ok) throw new Error(`Tripo download ${response.status}: ${response.statusText}`);
-  const bytes = Buffer.from(await response.arrayBuffer());
-  if (bytes.length > MAX_DOWNLOAD_BYTES) throw new Error(MESSAGE.DownloadTooLarge);
+  const bytes = await readCapped(response);
   const file = `${name}${path.extname(parsed.pathname).toLowerCase() || ".bin"}`;
   await writeFile(path.join(dir, file), bytes);
 }
