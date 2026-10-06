@@ -290,3 +290,15 @@ test("a download larger than the cap stops reading early", async () => {
   await assert.rejects(plugin.tool("generate", { operation: "text_to_model", prompt: "x" }, ctx), /larger than 100 MiB/);
   assert.ok(pulls < 110, `read ${pulls} MiB`);
 });
+
+test("stopping the turn ends a Tripo request that hangs", async () => {
+  fakeTripo({
+    poll: (init) =>
+      new Promise((_resolve, reject) => init.signal?.addEventListener("abort", () => reject(init.signal.reason))),
+  });
+  const { ctx, stop } = fakeHost(root, game);
+  const plugin = await activate(/** @type {any} */ ({}));
+  const call = plugin.tool("retrieve", { id: TASK }, ctx);
+  setImmediate(() => stop.abort(new Error("stopped")));
+  await assert.rejects(call, /stopped/);
+});

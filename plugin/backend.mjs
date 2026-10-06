@@ -8,6 +8,10 @@ const DOWNLOAD_HOSTS = [".tripo3d.ai", ".tripo3d.com"];
 /** How long one tool call waits for a task; Studio ends a plugin call after 190 s. */
 const WAIT_MS = 150_000;
 const POLL_MS = 3_000;
+/** Everything one tool call does, downloads included, ends inside Studio's 190 s. */
+const CALL_MS = 180_000;
+/** One Tripo API request; a stalled one fails instead of using up the call. */
+const REQUEST_MS = 30_000;
 /** The largest single file the plugin downloads or uploads. */
 const MAX_DOWNLOAD_BYTES = 100 * 1024 * 1024;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -72,11 +76,13 @@ async function sessionKey(ctx) {
  * Call the Tripo API and return its `data`, or throw Tripo's own message.
  * @param {string} key
  * @param {string} route
+ * @param {AbortSignal} signal The call's signal; each request also has its own time limit.
  * @param {RequestInit} [init]
  */
-async function tripo(key, route, init = {}) {
+async function tripo(key, route, signal, init = {}) {
   const response = await fetch(`${API}${route}`, {
     ...init,
+    signal: AbortSignal.any([signal, AbortSignal.timeout(REQUEST_MS)]),
     redirect: "error",
     headers: { Authorization: `Bearer ${key}`, ...init.headers },
   });
@@ -140,12 +146,13 @@ async function readProjectImage(directory, relative) {
  * @param {string} key
  * @param {string} directory
  * @param {string} relative
+ * @param {AbortSignal} signal
  */
-async function uploadImage(key, directory, relative) {
+async function uploadImage(key, directory, relative, signal) {
   const image = await readProjectImage(directory, relative);
   const form = new FormData();
   form.append("file", new Blob([image.bytes]), image.name);
-  const data = await tripo(key, "/upload/sts", { method: "POST", body: form });
+  const data = await tripo(key, "/upload/sts", signal, { method: "POST", body: form });
   return { type: image.type, file_token: data.image_token };
 }
 
@@ -154,8 +161,9 @@ async function uploadImage(key, directory, relative) {
  * @param {string} key
  * @param {string} directory
  * @param {Record<string, unknown>} args
+ * @param {AbortSignal} signal
  */
-async function taskBody(key, directory, args) {
+async function taskBody(key, directory, args, signal) {
   const operation = String(args.operation ?? "");
   const options = parseOptions(args.options);
   const body = Object.fromEntries(Object.entries(options).filter(([k]) => !RESERVED_OPTIONS.includes(k)));
@@ -164,7 +172,7 @@ async function taskBody(key, directory, args) {
     if (!args.prompt) throw new Error(MESSAGE.PromptRequired);
     body.prompt = String(args.prompt);
   } else if (operation === "image_to_model") {
-    if (args.image) body.file = await uploadImage(key, directory, String(args.image));
+    if (args.image) body.file = await uploadImage(key, directory, String(args.image), signal);
     else if (typeof options.imageUrl === "string") body.file = { type: "jpg", url: options.imageUrl };
     else throw new Error(MESSAGE.ImageRequired);
     if (args.prompt) body.prompt = String(args.prompt);
@@ -204,13 +212,14 @@ async function readCapped(response) {
  * @param {string} url
  * @param {string} dir
  * @param {string} name
+ * @param {AbortSignal} signal
  */
-async function download(url, dir, name) {
+async function download(url, dir, name, signal) {
   const parsed = new URL(url);
   if (parsed.protocol !== "https:" || !DOWNLOAD_HOSTS.some((h) => parsed.hostname.endsWith(h)))
     throw new Error(MESSAGE.DownloadHost(parsed.hostname));
   // A redirect could lead off Tripo's hosts, so it fails instead of being followed.
-  const response = await fetch(parsed, { redirect: "error" });
+  const response = await fetch(parsed, { signal, redirect: "error" });
   if (!response.ok) throw new Error(`Tripo download ${response.status}: ${response.statusText}`);
   const bytes = await readCapped(response);
   const file = `${name}${path.extname(parsed.pathname).toLowerCase() || ".bin"}`;
@@ -226,8 +235,9 @@ const urlOf = (value) =>
  * @param {import('./plugin-sdk/index.d.ts').PluginContext} ctx
  * @param {string} id The validated task id; Tripo's answer never names a local folder.
  * @param {any} task
+ * @param {AbortSignal} signal
  */
-async function deliver(ctx, id, task) {
+async function deliver(ctx, id, task, signal) {
   const output = task.output ?? {};
   const model = MODEL_OUTPUTS.map((field) => urlOf(output[field])).find(Boolean);
   const preview = urlOf(output.rendered_image);
@@ -236,8 +246,8 @@ async function deliver(ctx, id, task) {
   await rm(dir, { recursive: true, force: true });
   await mkdir(dir, { recursive: true });
   try {
-    if (model) await download(model, dir, "model");
-    if (preview) await download(preview, dir, "preview");
+    if (model) await download(model, dir, "model", signal);
+    if (preview) await download(preview, dir, "preview", signal);
     return await ctx.host("assets.deliver", { output: dir, jobId: id });
   } finally {
     // The game holds the delivered copy; keeping this one would double every model on disk.
@@ -250,13 +260,14 @@ async function deliver(ctx, id, task) {
  * @param {import('./plugin-sdk/index.d.ts').PluginContext} ctx
  * @param {string} key
  * @param {string} id
+ * @param {AbortSignal} signal
  */
-async function settle(ctx, key, id) {
+async function settle(ctx, key, id, signal) {
   const deadline = Date.now() + WAIT_MS;
-  let task = await tripo(key, `/task/${id}`);
+  let task = await tripo(key, `/task/${id}`, signal);
   while (PENDING.has(task.status) && Date.now() < deadline) {
-    await sleep(POLL_MS, ctx.signal);
-    task = await tripo(key, `/task/${id}`);
+    await sleep(POLL_MS, signal);
+    task = await tripo(key, `/task/${id}`, signal);
   }
   const record = /** @type {any} */ ((await ctx.host("jobs.read", { id })) ?? { taskId: id });
   // Only a record that reached success holds delivered files; a pending one holds an empty list.
@@ -269,7 +280,7 @@ async function settle(ctx, key, id) {
     consumedCredit: task.consumed_credit,
     files: delivered ?? [],
   };
-  if (task.status === Status.Success && !delivered) result.files = await deliver(ctx, id, task);
+  if (task.status === Status.Success && !delivered) result.files = await deliver(ctx, id, task, signal);
   // Outputs without files (a pre-rig check) are reported as Tripo returned them.
   if (task.status === Status.Success && result.files.length === 0) result.output = task.output;
   await ctx.host("jobs.write", { id, value: { ...record, status: task.status, files: result.files } });
@@ -306,7 +317,7 @@ async function status(ctx) {
   if (!key) return { connected: false, message: MESSAGE.Locked, jobs };
   const keyHint = key.slice(-KEY_HINT_CHARS);
   try {
-    const wallet = await tripo(key, "/user/balance");
+    const wallet = await tripo(key, "/user/balance", ctx.signal);
     return { connected: true, keyHint, balance: wallet.balance, frozen: wallet.frozen, jobs };
   } catch (error) {
     return { connected: true, keyHint, error: String(error instanceof Error ? error.message : error), jobs };
@@ -327,7 +338,7 @@ const ACTIONS = {
     }
     const token = args.token.trim();
     if (!token.startsWith("tsk_")) throw new Error(MESSAGE.BadKey);
-    const wallet = await tripo(token, "/user/balance");
+    const wallet = await tripo(token, "/user/balance", ctx.signal);
     await ctx.host("credentials.write", { token });
     return { connected: true, balance: wallet.balance, frozen: wallet.frozen };
   },
@@ -343,9 +354,10 @@ export const activate = async () => ({
     if (name === "status") return status(ctx);
     if (!ctx.project || !ctx.directory) throw new Error(MESSAGE.ProjectRequired);
     const key = await sessionKey(ctx);
-    if (name === "retrieve") return settle(ctx, key, taskId(args.id));
-    const body = await taskBody(key, ctx.directory, args);
-    const { task_id: id } = await tripo(key, "/task", {
+    const signal = AbortSignal.any([ctx.signal, AbortSignal.timeout(CALL_MS)]);
+    if (name === "retrieve") return settle(ctx, key, taskId(args.id), signal);
+    const body = await taskBody(key, ctx.directory, args, signal);
+    const { task_id: id } = await tripo(key, "/task", signal, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -360,7 +372,7 @@ export const activate = async () => ({
     };
     await ctx.host("jobs.write", { id, value: entry });
     await remember(ctx, entry);
-    return settle(ctx, key, id);
+    return settle(ctx, key, id, signal);
   },
   async action(name, args, ctx) {
     const run = Object.hasOwn(ACTIONS, name) ? ACTIONS[name] : undefined;
