@@ -15,7 +15,7 @@ Results are copied into the game under `assets/tripo/<task id>/` (`public/assets
 ## Install
 
 1. In Genex: **Plugins → Add → Install from GitHub** and paste `https://github.com/arklanq/genex-tripo`. Studio installs the latest release. To install by hand instead, download `tripo-<version>.zip` from [Releases](https://github.com/arklanq/genex-tripo/releases), unpack it and choose its folder with **Plugins → Add → Load local plugin…**.
-2. Press **Connect** on the Tripo row, paste your key from platform.tripo3d.ai (API Keys, starts with `tsk_`) and press **Save key**. The plugin checks the key with Tripo before Studio saves it.
+2. Press **Connect** on the Tripo row, paste your key from platform.tripo3d.ai (API Keys, starts with `tsk_`) and press **Connect**. The plugin checks the key with Tripo before Studio saves it.
 3. Studio unlocks the saved key again after a restart. If the panel asks for a key anyway, paste it again.
 
 ## Limits
