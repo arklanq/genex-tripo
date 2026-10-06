@@ -233,3 +233,15 @@ test("retrieve of a finished task without files still reports Tripo's output", a
   const again = await plugin.tool("retrieve", { id: TASK }, ctx);
   assert.deepEqual(again.output, { riggable: true, rig_type: "biped" });
 });
+
+test("a task id Tripo reports never names the download folder", async () => {
+  fakeTripo({ taskId: "../../victim" });
+  const { ctx } = fakeHost(root, game);
+  const victim = path.join(root, "..", "victim");
+  await mkdir(victim);
+  await writeFile(path.join(victim, "keep.txt"), "keep");
+  const plugin = await activate(/** @type {any} */ ({}));
+  const result = await plugin.tool("generate", { operation: "text_to_model", prompt: "crate" }, ctx);
+  await access(path.join(victim, "keep.txt"));
+  assert.deepEqual(result.files, [`assets/tripo/${TASK}/model.glb`, `assets/tripo/${TASK}/preview.webp`]);
+});

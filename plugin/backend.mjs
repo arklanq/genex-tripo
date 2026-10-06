@@ -208,19 +208,20 @@ const urlOf = (value) =>
 /**
  * Download a finished task's model and preview, then copy them into the game.
  * @param {import('./plugin-sdk/index.d.ts').PluginContext} ctx
+ * @param {string} id The validated task id; Tripo's answer never names a local folder.
  * @param {any} task
  */
-async function deliver(ctx, task) {
+async function deliver(ctx, id, task) {
   const output = task.output ?? {};
   const model = MODEL_OUTPUTS.map((field) => urlOf(output[field])).find(Boolean);
   const preview = urlOf(output.rendered_image);
   if (!model && !preview) return [];
-  const dir = path.join(String(await ctx.host("storage.root")), "downloads", task.task_id);
+  const dir = path.join(String(await ctx.host("storage.root")), "downloads", id);
   await rm(dir, { recursive: true, force: true });
   await mkdir(dir, { recursive: true });
   if (model) await download(model, dir, "model");
   if (preview) await download(preview, dir, "preview");
-  return ctx.host("assets.deliver", { output: dir, jobId: task.task_id });
+  return ctx.host("assets.deliver", { output: dir, jobId: id });
 }
 
 /**
@@ -247,7 +248,7 @@ async function settle(ctx, key, id) {
     consumedCredit: task.consumed_credit,
     files: delivered ?? [],
   };
-  if (task.status === Status.Success && !delivered) result.files = await deliver(ctx, task);
+  if (task.status === Status.Success && !delivered) result.files = await deliver(ctx, id, task);
   // Outputs without files (a pre-rig check) are reported as Tripo returned them.
   if (task.status === Status.Success && result.files.length === 0) result.output = task.output;
   await ctx.host("jobs.write", { id, value: { ...record, status: task.status, files: result.files } });
