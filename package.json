@@ -1,6 +1,6 @@
 {
   "name": "genex-tripo-plugin",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "license": "MIT",
   "description": "Genex Studio plugin that makes 3D models with your own Tripo API key.",
