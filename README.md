@@ -20,8 +20,8 @@ Results are copied into the game under `assets/tripo/<task id>/` (`public/assets
 
 ## Limits
 
-- One call waits up to 150 s (Studio ends plugin calls after 190 s). A longer task answers `running`, and the agent continues it with `tripo__retrieve`.
-- Downloads are accepted only from `*.tripo3d.ai` and `*.tripo3d.com`.
+- One call waits up to 150 s for a task and ends by 180 s, downloads included (Studio ends plugin calls after 190 s). Each Tripo request has 30 s. A longer task answers `running`, and a call that fails after Tripo accepted the task names it; either way the agent continues with `tripo__retrieve`.
+- Downloads are accepted only from `*.tripo3d.ai` and `*.tripo3d.com`, without redirects, up to 100 MiB per file. They are removed from the plugin's storage once delivered into the game.
 - Studio's `project.read` service reads text only, so `image_to_model` reads the image from the game folder itself. It refuses absolute paths, `..`, dot folders and `node_modules`.
 
 ## Develop
