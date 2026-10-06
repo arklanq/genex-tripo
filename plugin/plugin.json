@@ -27,10 +27,12 @@
         "type": "object",
         "properties": {
           "operation": {
-            "type": "string"
+            "type": "string",
+            "description": "One of text_to_model, image_to_model, texture_model, animate_prerigcheck, animate_rig, animate_retarget, stylize_model, convert_model."
           },
           "prompt": {
-            "type": "string"
+            "type": "string",
+            "description": "What to make. Required for text_to_model; optional for image_to_model."
           },
           "image": {
             "type": "string",
@@ -57,7 +59,8 @@
         "type": "object",
         "properties": {
           "id": {
-            "type": "string"
+            "type": "string",
+            "description": "The taskId an earlier tripo__generate returned."
           }
         },
         "required": ["id"]
