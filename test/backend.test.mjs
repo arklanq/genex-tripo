@@ -245,3 +245,11 @@ test("a task id Tripo reports never names the download folder", async () => {
   await access(path.join(victim, "keep.txt"));
   assert.deepEqual(result.files, [`assets/tripo/${TASK}/model.glb`, `assets/tripo/${TASK}/preview.webp`]);
 });
+
+test("delivered downloads do not stay in plugin storage", async () => {
+  fakeTripo();
+  const { ctx } = fakeHost(root, game);
+  const plugin = await activate(/** @type {any} */ ({}));
+  await plugin.tool("generate", { operation: "text_to_model", prompt: "crate" }, ctx);
+  await assert.rejects(access(path.join(root, "downloads", TASK)));
+});

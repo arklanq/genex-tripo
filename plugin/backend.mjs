@@ -219,9 +219,14 @@ async function deliver(ctx, id, task) {
   const dir = path.join(String(await ctx.host("storage.root")), "downloads", id);
   await rm(dir, { recursive: true, force: true });
   await mkdir(dir, { recursive: true });
-  if (model) await download(model, dir, "model");
-  if (preview) await download(preview, dir, "preview");
-  return ctx.host("assets.deliver", { output: dir, jobId: id });
+  try {
+    if (model) await download(model, dir, "model");
+    if (preview) await download(preview, dir, "preview");
+    return await ctx.host("assets.deliver", { output: dir, jobId: id });
+  } finally {
+    // The game holds the delivered copy; keeping this one would double every model on disk.
+    await rm(dir, { recursive: true, force: true });
+  }
 }
 
 /**
