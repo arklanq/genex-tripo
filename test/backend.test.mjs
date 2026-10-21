@@ -169,9 +169,6 @@ test("connect checks a new key with Tripo before saving it, and disconnect clear
   const { ctx, state } = fakeHost(root, game, null);
   const plugin = await activate(/** @type {any} */ ({}));
   assert.deepEqual(await plugin.action("connect", {}, ctx), { connected: false, needsKey: true });
-  await assert.rejects(plugin.action("connect", { token: "sk-wrong" }, ctx), /tsk_/);
-  assert.equal(state.saved, null);
-
   const answer = await plugin.action("connect", { token: " tsk_new " }, ctx);
   assert.equal(answer.connected, true);
   assert.equal(state.saved, "tsk_new");
@@ -332,13 +329,26 @@ test("image_to_model sends an image URL with the type its extension names", asyn
   assert.deepEqual(JSON.parse(submit.body).file, { type: "png", url: "https://cdn.example/hero.PNG?x=1" });
 });
 
-test("a malformed key is refused without echoing it", async () => {
-  fakeTripo();
+test("a key of any shape is checked by Tripo, not by the plugin", async () => {
+  const requests = fakeTripo();
   const { ctx, state } = fakeHost(root, game, null);
   const plugin = await activate(/** @type {any} */ ({}));
-  await assert.rejects(
-    plugin.action("connect", { token: "tsk_ab\ncd" }, ctx),
-    (error) => error.message === "A Tripo API key starts with tsk_." && !error.message.includes("ab"),
-  );
+  assert.equal((await plugin.action("connect", { token: "sk-new format" }, ctx)).connected, true);
+  assert.equal(requests.at(-1).auth, "Bearer sk-new format");
+  assert.equal(state.saved, "sk-new format");
+});
+
+test("a key a header cannot carry is refused without echoing it", async () => {
+  const requests = fakeTripo();
+  const { ctx, state } = fakeHost(root, game, null);
+  const plugin = await activate(/** @type {any} */ ({}));
+  for (const token of ["tsk_se\ncret", "tsk_se\u2026cret"]) {
+    await assert.rejects(plugin.action("connect", { token }, ctx), (error) => {
+      assert.match(error.message, /cannot be sent to Tripo/);
+      assert.doesNotMatch(error.message, /cret/);
+      return true;
+    });
+  }
+  assert.equal(requests.length, 0);
   assert.equal(state.saved, null);
 });

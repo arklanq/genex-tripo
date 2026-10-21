@@ -21,7 +21,6 @@ const INDEX_ID = "index";
 /** How much of the key's end the panel shows, so the user can tell keys apart. */
 const KEY_HINT_CHARS = 4;
 /** A key is printable ASCII, so it is always a valid header value and never echoed in fetch's error. */
-const KEY = /^tsk_[\x21-\x7e]+$/;
 /** Tripo task ids are UUIDs, which is also the job id shape Studio's asset delivery accepts. */
 const TASK_ID = /^[a-f0-9-]{36}$/;
 
@@ -48,7 +47,7 @@ const IMAGE_TYPES = { ".png": "png", ".jpg": "jpg", ".jpeg": "jpg", ".webp": "we
 const MESSAGE = {
   Locked: "The Tripo key is locked or not set. Open Plugins → Tripo and press Connect.",
   ProjectRequired: "Open a game first.",
-  BadKey: "A Tripo API key starts with tsk_.",
+  BadKey: "This key cannot be sent to Tripo. Copy it again from developers.tripo3d.ai.",
   BadTaskId: "A Tripo task id is a UUID such as 1ec04ced-4b87-44f6-a296-beee80777941.",
   UnknownOperation: (op) =>
     `Unknown operation ${op}. Use ${[...SOURCE_OPERATIONS, ...DERIVED_OPERATIONS].join(", ")}.`,
@@ -77,6 +76,18 @@ async function sessionKey(ctx) {
 }
 
 /**
+ * Refuse a key no HTTP header can carry: fetch's own error for such a header quotes the value.
+ * @param {string} key
+ */
+function assertSendable(key) {
+  try {
+    new Headers({ key });
+  } catch {
+    throw new Error(MESSAGE.BadKey);
+  }
+}
+
+/**
  * Call the Tripo API and return its `data`, or throw Tripo's own message.
  * @param {string} key
  * @param {string} route
@@ -84,6 +95,7 @@ async function sessionKey(ctx) {
  * @param {RequestInit} [init]
  */
 async function tripo(key, route, signal, init = {}) {
+  assertSendable(key);
   const response = await fetch(`${API}${route}`, {
     ...init,
     signal: AbortSignal.any([signal, AbortSignal.timeout(REQUEST_MS)]),
@@ -365,7 +377,6 @@ const ACTIONS = {
       return saved ? { connected: true } : { connected: false, needsKey: true };
     }
     const token = args.token.trim();
-    if (!KEY.test(token)) throw new Error(MESSAGE.BadKey);
     const wallet = await tripo(token, "/user/balance", ctx.signal);
     await ctx.host("credentials.write", { token });
     return { connected: true, balance: wallet.balance, frozen: wallet.frozen };
