@@ -6,6 +6,11 @@
   "publisher": "Arek Nurzyński",
   "description": "Make 3D models with your own Tripo API key and Tripo credits, not Genex credits.",
   "icon": "icon.png",
+  "setup": [
+    "Create an API key at platform.tripo3d.ai under API Keys. It starts with tsk_.",
+    "In Genex, open the plugin's Configuration, paste the key and press Connect.",
+    "Top up your Tripo wallet: every model is paid from it, not from Genex credits."
+  ],
   "backend": "backend.mjs",
   "capabilities": ["credentials", "network", "jobs", "project.write"],
   "network": {
