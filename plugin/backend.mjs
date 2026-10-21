@@ -63,7 +63,7 @@ const MESSAGE = {
   DownloadTooLarge: "A Tripo result is larger than 100 MiB.",
   UnknownAction: "Unknown Tripo action.",
   Unsettled: (id, detail) =>
-    `${detail} Tripo task ${id} already exists: call tripo__retrieve with id ${id}; do not generate again.`,
+    `${detail} Tripo task ${id} already exists: call arklanq-tripo__retrieve with id ${id}; do not generate again.`,
 };
 
 /**
@@ -298,7 +298,7 @@ async function settle(ctx, key, id, signal) {
   if (task.status === Status.Success && result.files.length === 0) result.output = task.output;
   await ctx.host("jobs.write", { id, value: { ...record, status: task.status, files: result.files } });
   if (PENDING.has(task.status))
-    return { ...result, next: `Still ${task.status}. Call tripo__retrieve with id ${id}; do not generate again.` };
+    return { ...result, next: `Still ${task.status}. Call arklanq-tripo__retrieve with id ${id}; do not generate again.` };
   return result;
 }
 

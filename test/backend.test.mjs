@@ -36,7 +36,7 @@ function fakeHost(root, game, key = "tsk_test") {
         jobs.set(args.id, structuredClone(args.value));
         return true;
       case "assets.deliver": {
-        const files = (await readdir(args.output)).sort().map((f) => `assets/tripo/${args.jobId}/${f}`);
+        const files = (await readdir(args.output)).sort().map((f) => `assets/arklanq-tripo/${args.jobId}/${f}`);
         delivered.push(...files);
         return files;
       }
@@ -108,7 +108,7 @@ test("generate submits once, records the task before waiting and delivers model 
   assert.equal(submits[0].auth, "Bearer tsk_test");
   assert.ok(calls.indexOf("jobs.write") < calls.indexOf("assets.deliver"), "task recorded before delivery");
   assert.equal(result.status, "success");
-  assert.deepEqual(result.files, [`assets/tripo/${TASK}/model.glb`, `assets/tripo/${TASK}/preview.webp`]);
+  assert.deepEqual(result.files, [`assets/arklanq-tripo/${TASK}/model.glb`, `assets/arklanq-tripo/${TASK}/preview.webp`]);
   assert.deepEqual(delivered, result.files);
   assert.equal(jobs.get("index")[0].taskId, TASK);
 });
@@ -217,12 +217,12 @@ test("a task still running when generate returns is delivered by a later retriev
   const plugin = await activate(/** @type {any} */ ({}));
   const first = await onMockedClock(() => plugin.tool("generate", { operation: "text_to_model", prompt: "crate" }, ctx));
   assert.equal(first.status, "running");
-  assert.match(first.next, /tripo__retrieve/);
+  assert.match(first.next, /arklanq-tripo__retrieve/);
 
   statuses[0] = "success";
   const later = await plugin.tool("retrieve", { id: TASK }, ctx);
   assert.equal(later.status, "success");
-  assert.deepEqual(later.files, [`assets/tripo/${TASK}/model.glb`, `assets/tripo/${TASK}/preview.webp`]);
+  assert.deepEqual(later.files, [`assets/arklanq-tripo/${TASK}/model.glb`, `assets/arklanq-tripo/${TASK}/preview.webp`]);
   assert.deepEqual(delivered, later.files);
 });
 
@@ -244,7 +244,7 @@ test("a task id Tripo reports never names the download folder", async () => {
   const plugin = await activate(/** @type {any} */ ({}));
   const result = await plugin.tool("generate", { operation: "text_to_model", prompt: "crate" }, ctx);
   await access(path.join(victim, "keep.txt"));
-  assert.deepEqual(result.files, [`assets/tripo/${TASK}/model.glb`, `assets/tripo/${TASK}/preview.webp`]);
+  assert.deepEqual(result.files, [`assets/arklanq-tripo/${TASK}/model.glb`, `assets/arklanq-tripo/${TASK}/preview.webp`]);
 });
 
 test("a submitted task id that is not a UUID is refused before it is recorded", async () => {
@@ -318,7 +318,7 @@ test("a failure after the task was submitted names the task to retrieve", async 
   const plugin = await activate(/** @type {any} */ ({}));
   await assert.rejects(
     plugin.tool("generate", { operation: "text_to_model", prompt: "x" }, ctx),
-    (error) => error.message.includes(TASK) && /tripo__retrieve/.test(error.message) && /503/.test(error.message),
+    (error) => error.message.includes(TASK) && /arklanq-tripo__retrieve/.test(error.message) && /503/.test(error.message),
   );
   assert.equal(requests.filter((r) => r.method === "POST" && r.url.endsWith("/task")).length, 1);
 });

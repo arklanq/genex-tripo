@@ -11,13 +11,13 @@ A [Genex](https://github.com/genex-games/genex-desktop) plugin that makes 3D mod
 
 | Tool | What it does |
 | --- | --- |
-| `tripo__status` | Shows your account, wallet balance and recent tasks. Free. |
-| `tripo__generate` | Runs one Tripo task (text or image to model, texture, rig, animate, stylize or convert) and saves the result in `assets/tripo/`. Paid, and asks for consent each time. |
-| `tripo__retrieve` | Waits for an existing task and downloads it. Free. |
+| `arklanq-tripo__status` | Shows your account, wallet balance and recent tasks. Free. |
+| `arklanq-tripo__generate` | Runs one Tripo task (text or image to model, texture, rig, animate, stylize or convert) and saves the result in `assets/arklanq-tripo/`. Paid, and asks for consent each time. |
+| `arklanq-tripo__retrieve` | Waits for an existing task and downloads it. Free. |
 
 ## Notes
 
-- A call waits up to 150 s. After that, a still-running task can be picked up with `tripo__retrieve`.
+- A call waits up to 150 s. After that, a still-running task can be picked up with `arklanq-tripo__retrieve`.
 - Downloads are limited to 100 MiB per file.
 
 ## Develop
@@ -34,4 +34,4 @@ npm run plugin:doctor -- /path/to/genex-tripo/plugin
 
 ## Release
 
-Bump `version` in `plugin/plugin.json` and `package.json`, commit, then push a matching tag, such as `v0.2.0`. The workflow publishes a GitHub release with `tripo-<version>.zip`.
+Bump `version` in `plugin/plugin.json` and `package.json`, commit, then push a matching tag, such as `v0.2.0`. The workflow publishes a GitHub release with `arklanq-tripo-<version>.zip`.
