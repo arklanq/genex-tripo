@@ -5,7 +5,7 @@ A [Genex](https://github.com/genex-games/genex-desktop) plugin that makes 3D mod
 ## Install
 
 1. In Genex, open **Plugins → Add → Install from GitHub** and paste `https://github.com/arklanq/genex-tripo`.
-2. Press **Connect** and paste your API key from platform.tripo3d.ai (**API Keys**; it starts with `tsk_`).
+2. Press **Connect** and paste your API key from developers.tripo3d.ai (**API Keys**; it starts with `tsk_`).
 
 ## Tools
 
