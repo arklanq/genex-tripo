@@ -20,6 +20,12 @@ A [Genex](https://github.com/genex-games/genex-desktop) plugin that makes 3D mod
 - A call waits up to 150 s. After that, a still-running task can be picked up with `arklanq-tripo__retrieve`.
 - Downloads are limited to 100 MiB per file.
 
+## Privacy
+
+- Your prompts and task settings go to Tripo (`api.tripo3d.ai`).
+- For `image_to_model`, the plugin uploads the image the agent picked from the game folder to Tripo. It reads only that one file, and no other game files leave your computer.
+- See [Tripo's privacy policy](https://www.tripo3d.ai/privacy).
+
 ## Develop
 
 ```bash
