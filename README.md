@@ -23,7 +23,7 @@ A [Genex](https://github.com/genex-games/genex-desktop) plugin that makes 3D mod
 ## Privacy
 
 - Your prompts and task settings go to Tripo (`api.tripo3d.ai`).
-- For `image_to_model`, the plugin uploads the image the agent picked from the game folder to Tripo. It reads only that one file, and no other game files leave your computer.
+- When `arklanq-tripo__generate` runs the `image_to_model` operation, the plugin uploads the image the agent picked from the game folder to Tripo. It reads only that one file, and no other game files leave your computer.
 - See [Tripo's privacy policy](https://www.tripo3d.ai/privacy).
 
 ## Develop
