@@ -1,7 +1,7 @@
 {
   "apiVersion": 3,
   "id": "arklanq-tripo",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "name": "Tripo",
   "publisher": "Arek Nurzyński",
   "description": "Make 3D models with your own Tripo API key and Tripo credits, not Genex credits.",
