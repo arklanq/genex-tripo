@@ -40,4 +40,4 @@ npm run plugin:doctor -- /path/to/genex-tripo/plugin
 
 ## Release
 
-Bump `version` in `plugin/plugin.json` and `package.json`, commit, then push a matching tag, such as `v0.2.0`. The workflow publishes a GitHub release with `arklanq-tripo-<version>.zip`.
+Bump `version` in `plugin/plugin.json` and `package.json`, commit, then push a matching tag, such as `v0.2.0`. The workflow publishes a GitHub release with `arklanq-tripo-<version>.zip` and the catalog artifact `arklanq-tripo-<version>.json`, written by `scripts/pack-artifact.mjs`.
